@@ -1,0 +1,112 @@
+https://notepad.pw/picpus
+https://www.dropbox.com/s/n0hnr16opjkby4g/seminaireBigDATA.pptx?dl=0
+docker pull yannael/kafka-sparkstreaming-cassandra
+https://github.com/Yannael/kafka-sparkstreaming-cassandra
+	mfonsau@next-challenge.fr
+
+
+
+
+docker run -it -p 4040:4040 -p 8080:8080 -p 8081:8081 -p 7077:7077 -h spark --name=spark p7hb/docker-spark
+
+
+
+curl http://data.culture.fr/entrepot/PALISSY/palissy-MH.json > palissy-MH.json
+
+spark-shell
+
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+// version dataframe directement sans sql
+val dfs = sqlContext.read.json("palissy-MH.json")
+dfs.printSchema()
+dfs.count
+dfs.select("COM").show()	
+dfs.groupBy("COM").count().show()
+
+
+//version dataframe avec hive SQL 	
+val dfs = sqlContext.read.json("palissy-MH.json")
+dfs.registerTempTable("monuments")
+val result = sqlContext.sql("SELECT count(*) as count  FROM monuments where REG='Alsace'")
+result.show
+
+apt-get install zip unzip
+
+curl http://data.culture.fr/entrepot/PALISSY/palissy-MH.csv.zip > palissy-MH.csv.zip
+unzip palissy-MH.csv.zip 
+spark-shell
+
+// version pourri ...
+
+val monCSV = sc.textFile("palissy-MH-valid.csv.utf").map(_.split("|")).map(p => MonumentSchema(p(0),p(1),p(2),p(3),p(4),p(5),p(6),p(7),p(8),p(9),p(10),p(11),p(12))).toDF()
+
+//version efficace et rapide
+
+import org.apache.spark.sql._
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val dfs = sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", "|").load("palissy-MH-valid.csv.utf")
+
+dfs.printSchema()
+dfs.registerTempTable("monData")
+val res=sqlContext.sql("select * from monData limit 10")
+res.map(t => "Name: " + t(0)).collect().foreach(println)
+res.show
+
+// spark streaming
+
+apt-get install netcat
+//nc
+
+val lines = spark.readStream.format("socket").option("host", "172.18.0.2").option("port", 9999).load.as[String]
+val words = lines.flatMap(_.split("\\W+"))
+val counter = words.groupBy("value").count
+
+
+nc -lk 9999
+
+import org.apache.spark.sql.streaming.OutputMode.Complete
+
+val query = counter.writeStream.outputMode(Complete).format("console").start
+
+
+
+
+
+// RDD input output transformation
+sqlContext.read.format("com.databricks.spark.csv").option("header", "true").option("inferSchema", "true").option("delimiter", "|").load("palissy-MH-valid.csv.utf").select("*").where($"REG">"Alsace").write.format("csv").save("output-csv")
+
+//stream sql
+import org.apache.spark.sql.types._
+
+val simpleSchema = StructType(StructField("REF", StringType, true) :: StructField("REG", StringType, true) :: StructField("DPT", StringType, true) :: StructField("COM", StringType, true) :: StructField("INSEE", StringType, true) :: StructField("EDIF", StringType, true) :: Nil)
+
+
+
+StreamingQuery query=sqlContext.readStream.option("delimiter", "|").option("header", "true").option("inferSchema", "true").schema(simpleSchema).load("/").writeStream.outputMode("complete").format("console").start();
+
+
+
+
+//Structured Streaming?—?Streaming Datasets https://jaceklaskowski.gitbooks.io/spark-structured-streaming/spark-structured-streaming.html
+
+
+
+case class MonumentSchema(REF:String,REG:String,DPT:String,COM:String,INSEE:String,EDIF:String,DENO:String,TICO:String,MATR:String,AUTR:String,SCLE:String,DPRO:String,STAT:String)
+import org.apache.spark.sql.Encoders
+val schema = Encoders.product[MonumentSchema].schema
+val monuments = spark.readStream.schema(schema).csv("*.utf").as[MonumentSchema]
+monuments.isStreaming
+val com =  monuments.groupBy('REG).agg(count('reg) as "somme")
+
+import scala.concurrent.duration._
+import org.apache.spark.sql.streaming.{OutputMode, Trigger}
+import org.apache.spark.sql.streaming.ProcessingTime
+val regionsCountStream= com.writeStream.format("console").trigger(ProcessingTime("30 seconds")).outputMode(OutputMode.Complete).queryName("textStream").start
+
+
+val out = monuments.writeStream.format("console").option("truncate", false).trigger(ProcessingTime("5 seconds")).queryName("consoleStream").outputMode(OutputMode.Append).start
+
+https://spark.apache.org/docs/latest/streaming-kafka-0-8-integration.html

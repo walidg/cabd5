@@ -1,0 +1,53 @@
+import java.net._
+val url = new URL ("http://"www.google.fr")
+def toto(x:String) = if (x == "xavier" ) "yes"
+toto("xavier")
+def toto(x:String) = if (x == "xavier" ) "yes" else 1
+toto("Djamel")
+def toto(x:String):String = if (x == "xavier" ) "yes" else "no"
+toto("reda")
+def toto(x:Any, y:Any): Any = {if(x == "xavier"& y=="reda") return "yes" else return 1}
+toto("xavier", "reda")
+
+https://stackoverflow.com/questions/33534363/if-i-use-expose-port-in-a-dockerfile-can-i-un-expose-the-port-it-when-i-use-d
+
+https://www.dropbox.com/sh/kegxsmoknkj9vxp/AABLPKh_RKZgLtD7kzfooMoDa?dl=0
+Industrialisation:
+Etape 1 :
+	definir un os different par membre de la team
+	installation GIT
+	installation Apache 
+import un projet html simple et le deployer
+la rendre disponible sur le nav de la machie locale
+https://www.dropbox.com/s/i8qpp1p3atjj4iw/docker-example.zip?dl=0
+https://services.github.com/on-demand/downloads/fr/github-git-cheat-sheet.pdf
+Super Etape 1:
+         deployer un projet php et installer la BD
+         utiliser un fichier SH externe avec la variabilisation des données
+
+Etape 2:
+à partir de l'image precedente installer:
+java 
+scala
+maven 
+SBT
+
+
+
+pour info:
+FROM ubuntu:14.04
+# File Author / Maintainer
+MAINTAINER tes infos
+# Set the enviroment variable
+ENV DEBIAN_FRONTEND noninteractive
+# Install required packages
+RUN apt-get clean all
+# Add shell scripts for starting apache2
+ADD apache2-start.sh /apache2-start.sh
+# Set the port
+EXPOSE 80
+#Mapper un dossier externe
+VOLUME ["/var/log/apachash", "/apache2-start.sh"]
+
+#probleme servername
+RUN echo 'ServerName localhost' >> /etc/apache2/apache2.conf
